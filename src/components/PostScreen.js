@@ -1,39 +1,32 @@
 import React, { Component } from "react";
-import { View, Text, StyleSheet, FlatList } from "react-native";
+import { View, Text, FlatList, Image } from "react-native";
 import axios from "axios";
 
 class PostScreen extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      array: [{ summary: "", name: "" }]
+      shows: [],
+      queryText: "cat"
     };
   }
 
-  componentWillMount() {
-    const query = "http://api.tvmaze.com/search/shows?q=war";
-
-    axios.get(query).then(response => {
-      for (var i = 0; i < response.data.length; i++) {
-        if (response.status) {
-          var stateCopy = Object.assign({}, this.state);
-          stateCopy.array[i].summary = this.repAll(
-            response.data[i].show.summary,
-            ""
-          );
-          stateCopy.array[i].name = response.data[i].show.name;
-          this.setState({
-            array: [...this.state.array, stateCopy]
-          });
-        }
-      }
-    });
+  componentDidMount() {
+    axios
+      .get("https://api.tvmaze.com/search/shows?q=" + this.state.queryText)
+      .then(response => {
+        this.setState({
+          shows: response.data.map(item => item.show)
+        });
+      });
   }
 
-  repAll(search, replacement) {
+  replaceAll(search, replacement) {
     if (search == null) return "";
     else {
       var target = [
+        "<strong>",
+        "</strong>",
         "<p>",
         "</p>",
         "<b>",
@@ -41,11 +34,18 @@ class PostScreen extends Component {
         "<i>",
         "</i>",
         "<br>",
+        "<br/>",
+        "<br />",
         "—",
         "--",
         "_______",
         "–",
-        "amp;"
+        "amp;",
+        ".",
+        ",",
+        "''.",
+        "''",
+        "?"
       ];
       for (var i = 0; i < target.length; i++)
         search = search.split(target[i]).join(replacement);
@@ -55,48 +55,75 @@ class PostScreen extends Component {
     }
   }
 
-  returnList() {
-    return this.state.array.map((data, i) => {
-      return (
-        <View key={i}>
-          <Text>{data.name}</Text>
-          <Text>{data.summary}</Text>
-        </View>
-      );
+  colourText(str) {
+    return str.map((data, i) => {
+      if (data.length > 5)
+        return (
+          <View key={i}>
+            <Text
+              onPress={async () => {
+                await this.setState({
+                  queryText: data.replace(/[^a-z0-9+]+/gi, "")
+                });
+                this.componentDidMount();
+              }}
+              style={{ color: "purple" }}
+            >
+              {data + " "}
+            </Text>
+          </View>
+        );
+      else {
+        return (
+          <View key={i}>
+            <Text>{data + " "}</Text>
+          </View>
+        );
+      }
     });
   }
 
   printData() {
     return (
       <FlatList
-        data={this.state.array}
+        style={{
+          flex: 1,
+          flexDirection: "column"
+        }}
+        numColumns={5}
+        data={this.state.shows}
         keyExtractor={(item, index) => index.toString()}
         renderItem={({ item }) => (
-          <Text>
-            <Text style={{ fontWeight: "bold" }}>{item.name}</Text>
-            {"\n"}
-            {item.summary}
-            {"\n\n"}
-          </Text>
+          <View style={{ flex: 1, borderWidth: 1 }}>
+            <Text>
+              {item.image != null && (
+                <Image
+                  style={{
+                    width: 200,
+                    height: 200
+                  }}
+                  source={{
+                    uri: item.image.original
+                  }}
+                />
+              )}
+              {"\n"}
+              <Text style={{ textAlign: "center" }}>
+                <Text style={{ fontWeight: "bold" }}>{item.name}</Text>
+                <Text>
+                  {this.colourText(
+                    this.replaceAll(item.summary, "").split(" ")
+                  )}
+                </Text>
+              </Text>
+            </Text>
+          </View>
         )}
       />
     );
   }
-
   render() {
-    return (
-      <View style={styles.container}>
-        <Text>{this.printData()}</Text>
-      </View>
-    );
+    return <View>{this.printData()}</View>;
   }
 }
 export default PostScreen;
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center"
-  }
-});
